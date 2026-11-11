@@ -35,6 +35,30 @@ jobs:
           cp -a "$PROJECT_DIR"/. .
           test -f app/build.gradle || test -f app/build.gradle.kts
 
+      - name: Fix audio export code
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/src/main/java/com/voiceverse/app/MainActivity.java")
+          s = p.read_text()
+
+          if "import android.os.Bundle;" not in s:
+              lines = s.splitlines(True)
+              i = next(i for i, line in enumerate(lines) if line.startswith("package "))
+              lines.insert(i + 1, "import android.os.Bundle;\n")
+              s = "".join(lines)
+
+          old = 't.synthesizeToFile(x,new HashMap<>(),f,"voiceverse-export")'
+          new = 't.synthesizeToFile(x,new Bundle(),f,"voiceverse-export")'
+
+          if old not in s:
+              raise SystemExit("Audio export code not found.")
+
+          p.write_text(s.replace(old, new))
+          print("Audio export fix applied.")
+          PY
+ 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
